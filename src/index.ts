@@ -2,13 +2,25 @@ import os from "node:os";
 import fs from "fs-extra";
 import path from "node:path";
 import { exec } from "node:child_process";
-import { EventEmitter } from "node:events";
+import { TypedEmitter } from "tiny-typed-emitter";
 
 import axios from "axios";
 import axiosRetry from "axios-retry";
 import PQueue from "p-queue";
 
-export default class M3U8Downloader extends EventEmitter {
+interface M3U8DownloaderEvents {
+  start: () => void;
+  progress: (progress: { downloaded: number; total: number }) => void;
+  segmentDownloaded: (index: number, total: number) => void;
+  paused: () => void;
+  resumed: () => void;
+  canceled: () => void;
+  error: (error: string) => void;
+  completed: () => void;
+  converted: (output: string) => void;
+}
+
+export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   private m3u8Url: string;
   output: string;
   private tempDir: string;
