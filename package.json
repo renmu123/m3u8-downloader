@@ -10,7 +10,7 @@
   "typings": "dist/index.d.ts",
   "scripts": {
     "dev": "tsc -w",
-    "build": "tsc",
+    "build": "rimraf dist && tsc",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "publish": "pnpm run build && pnpm publish --access=public"
   },
@@ -37,8 +37,9 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "20.10.0",
+    "@types/node": "22.0.0",
     "axios-mock-adapter": "^1.22.0",
+    "rimraf": "^6.0.1",
     "tslib": "^2.6.3",
     "typescript": "^5.5.4",
     "vitest": "^2.0.4"
