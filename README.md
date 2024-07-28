@@ -32,12 +32,19 @@ import M3U8Downloader from "./path/to/M3U8Downloader";
 
 const downloader = new M3U8Downloader(
   "https://example.com/path/to/playlist.m3u8",
-  "output.mp4",
+  "output.mp4", // mp4 ext
   {
-    concurrency: 5,
     convert2Mp4: true,
     ffmpegPath: "/usr/local/bin/ffmpeg",
-    retries: 3,
+  }
+);
+
+// no convert
+const downloader = new M3U8Downloader(
+  "https://example.com/path/to/playlist.m3u8",
+  "output.ts", // ts ext
+  {
+    convert2Mp4: false,
   }
 );
 ```

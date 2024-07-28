@@ -70,11 +70,13 @@ export default class M3U8Downloader extends EventEmitter {
       retryDelay: axiosRetry.exponentialDelay,
     });
 
-    // 监听取消和错误事件
     this.on("canceled", this.cleanUpDownloadedFiles);
     this.on("error", this.cleanUpDownloadedFiles);
   }
 
+  /**
+   * download M3U8 file
+   */
   public async download() {
     try {
       this.emit("start");
@@ -102,6 +104,9 @@ export default class M3U8Downloader extends EventEmitter {
     }
   }
 
+  /**
+   * pause download
+   */
   public pause() {
     if (this.isCanceled) return;
 
@@ -110,6 +115,9 @@ export default class M3U8Downloader extends EventEmitter {
     this.emit("paused");
   }
 
+  /**
+   * resume download
+   */
   public resume() {
     if (this.isCanceled) return;
 
@@ -117,12 +125,19 @@ export default class M3U8Downloader extends EventEmitter {
     this.isPaused = false;
     this.emit("resumed");
   }
+
+  /**
+   * cancel download
+   */
   public cancel() {
     this.isCanceled = true;
     this.queue.clear(); // 清空队列中的所有任务
     this.emit("canceled");
   }
 
+  /**
+   * download M3U8 file
+   */
   async downloadM3U8(): Promise<string> {
     try {
       const { data: m3u8Content } = await axios.get(this.m3u8Url);
@@ -133,6 +148,10 @@ export default class M3U8Downloader extends EventEmitter {
     }
   }
 
+  /**
+   * parse M3U8 file and return an array of URLs
+   * @param m3u8Content M3U8 file content
+   */
   parseM3U8(m3u8Content: string): string[] {
     const baseUrl = this.m3u8Url.substring(
       0,
@@ -144,6 +163,10 @@ export default class M3U8Downloader extends EventEmitter {
       .map(line => (line.startsWith("http") ? line : baseUrl + line));
   }
 
+  /**
+   * download TS segments
+   * @param tsUrls Array of TS segment URLs
+   */
   private async downloadTsSegments(tsUrls: string[]) {
     const downloadSegment = async (tsUrl: string, index: number) => {
       if (this.isCanceled) return;
@@ -178,6 +201,10 @@ export default class M3U8Downloader extends EventEmitter {
     await this.queue.onIdle();
   }
 
+  /**
+   * merge TS segments into a single file
+   * @param tsUrls Array of TS segment URLs
+   */
   private mergeTsSegments(tsUrls: string[]) {
     if (this.isCanceled) return;
     let mergedFilePath = path.resolve(this.tempDir, "output.ts");
@@ -220,6 +247,10 @@ export default class M3U8Downloader extends EventEmitter {
     this.downloadedFiles = [];
   }
 
+  /**
+   * convert merged TS file to MP4
+   * @param tsMediaPath Path to merged TS file
+   */
   private convertToMp4(tsMediaPath: string) {
     const inputFilePath = tsMediaPath;
     const outputFilePath = this.output;
