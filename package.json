@@ -1,7 +1,7 @@
 {
   "name": "@renmu123/m3u8-downloader",
   "version": "0.1.0",
-  "description": "m2u8 downloader ",
+  "description": "m3u8 downloader ",
   "homepage": "https://github.com/renmu123/m3u8-downloader",
   "type": "module",
   "main": "dist/index.js",
@@ -21,7 +21,7 @@
     "live"
   ],
   "author": "renmu123",
-  "license": "GPLv3",
+  "license": "MIT",
   "engines": {
     "node": ">=18"
   },
