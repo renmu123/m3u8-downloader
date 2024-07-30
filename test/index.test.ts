@@ -55,16 +55,9 @@ describe("M3U8Downloader", () => {
         // clean: false,
       }) as any;
 
-      downloader.on("error", (error: string) => {
-        console.log("error", error);
-      });
-      downloader.on("progress", (progress: number) => {
-        console.log("progress", progress);
-      });
       await downloader.download();
       await sleep(100);
 
-      console.log("output", downloader.downloadedFiles);
       expect(fs.existsSync(output)).toBeTruthy();
       expect(fs.readFileSync(output).length).toEqual(8868524);
 

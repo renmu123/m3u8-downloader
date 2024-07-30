@@ -21,6 +21,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test
+      - run: pnpm run coverage
 
       - uses: codecov/codecov-action@v4
         with:
