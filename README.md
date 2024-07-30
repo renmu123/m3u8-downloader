@@ -55,7 +55,7 @@ const downloader = new M3U8Downloader(
   "anything",
   {
     mergeSegments: false,
-    tempDir: outputDir, // the directory to store downloaded segments
+    segmentsDir: outputDir, // the directory to store downloaded segments
   }
 );
 ```
@@ -67,7 +67,7 @@ const downloader = new M3U8Downloader(
  * @param m3u8Url M3U8 URL
  * @param options
  * @param options.concurrency Number of segments to download concurrently
- * @param options.tempDir Temporary directory to store downloaded segments
+ * @param options.segmentsDir directory to store downloaded segments,default: system temp dir
  * @param options.mergeSegments Whether to merge downloaded segments into a single file
  * @param options.convert2Mp4 Whether to convert2Mp4 downloaded segments into a single file, you must open mergeSegments
  * @param options.ffmpegPath Path to ffmpeg binary if you open convert2Mp4

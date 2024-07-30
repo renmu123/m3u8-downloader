@@ -28,7 +28,7 @@ interface M3U8DownloaderEvents {
 export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   private m3u8Url: string;
   output: string;
-  private tempDir: string;
+  private segmentsDir: string;
   private queue: PQueue;
   private totalSegments: number;
   private downloadedSegments: number;
@@ -44,7 +44,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     concurrency: number;
     convert2Mp4: boolean;
     mergeSegments: boolean;
-    tempDir: string;
+    segmentsDir: string;
     ffmpegPath: string;
     retries: number;
     clean: boolean;
@@ -55,7 +55,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * @param m3u8Url M3U8 URL
    * @param options
    * @param options.concurrency Number of segments to download concurrently
-   * @param options.tempDir Temporary directory to store downloaded segments
+   * @param options.segmentsDir Temporary directory to store downloaded segments
    * @param options.mergeSegments Whether to merge downloaded segments into a single file
    * @param options.convert2Mp4 Whether to convert2Mp4 downloaded segments into a single file, you must open mergeSegments
    * @param options.ffmpegPath Path to ffmpeg binary if you open convert2Mp4
@@ -68,7 +68,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     output: string,
     options: {
       concurrency?: number;
-      tempDir?: string;
+      segmentsDir?: string;
       convert2Mp4?: boolean;
       mergeSegments?: boolean;
       ffmpegPath?: string;
@@ -82,7 +82,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       concurrency: 5,
       convert2Mp4: false,
       mergeSegments: true,
-      tempDir: os.tmpdir(),
+      segmentsDir: os.tmpdir(),
       retries: 3,
       ffmpegPath: "ffmpeg",
       clean: true,
@@ -91,7 +91,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     this.options = Object.assign(defaultOptions, options);
     this.m3u8Url = m3u8Url;
     this.output = output;
-    this.tempDir = this.options.tempDir;
+    this.segmentsDir = this.options.segmentsDir;
     this.queue = new PQueue({ concurrency: this.options.concurrency });
     this.totalSegments = 0;
     this.downloadedSegments = 0;
@@ -120,8 +120,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     try {
       this.emit("start");
       this.status = "running";
-      if (!(await fs.pathExists(this.tempDir))) {
-        await fs.mkdir(this.tempDir, { recursive: true });
+      if (!(await fs.pathExists(this.segmentsDir))) {
+        await fs.mkdir(this.segmentsDir, { recursive: true });
       }
       if (!(await fs.pathExists(path.dirname(this.output)))) {
         throw new Error("Output directory does not exist");
@@ -228,7 +228,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         ...this.options.headers,
       },
     });
-    const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
+    const segmentPath = path.resolve(this.segmentsDir, `segment${index}.ts`);
     await fs.writeFile(segmentPath, response.data);
     this.downloadedFiles.push(segmentPath);
     this.downloadedSegments++;
@@ -264,7 +264,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   private mergeTsSegments(total: number, deleteSource: boolean = true) {
     if (!this.isRunning()) return;
-    let mergedFilePath = path.resolve(this.tempDir, "output.ts");
+    let mergedFilePath = path.resolve(this.segmentsDir, "output.ts");
 
     if (!this.options.convert2Mp4) {
       mergedFilePath = this.output;
@@ -274,7 +274,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     for (let index = 0; index < total; index++) {
       if (!this.isRunning()) return;
 
-      const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
+      const segmentPath = path.resolve(this.segmentsDir, `segment${index}.ts`);
       if (fs.existsSync(segmentPath)) {
         const segmentData = fs.readFileSync(segmentPath);
         writeStream.write(segmentData);
@@ -297,7 +297,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       })
     );
     if (this.options.convert2Mp4) {
-      let mergedFilePath = path.resolve(this.tempDir, "output.ts");
+      let mergedFilePath = path.resolve(this.segmentsDir, "output.ts");
       if (await fs.pathExists(mergedFilePath)) {
         await fs.unlink(mergedFilePath);
       }
