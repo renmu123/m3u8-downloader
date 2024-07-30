@@ -48,8 +48,7 @@ app.get("/head/video.m3u8", (req, res) => {
 
 // 返回assets目录下的文件
 app.get("/:file", async (req, res) => {
-  console.log(req.params.file);
-  // header中有delay参数时，延迟返回
+  // if has delay header, delay the response
   if (req.headers.delay) {
     await sleep(Number(req.headers.delay));
   }

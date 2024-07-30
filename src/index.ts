@@ -156,7 +156,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   public pause() {
     if (!this.isRunning()) return;
 
-    // 正在进行的任务不会被取消
+    // running in queue will not be paused
     this.queue.pause();
     this.status = "paused";
     this.emit("paused");
@@ -179,7 +179,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     if (["completed", "canceled", "error"].includes(this.status)) return;
 
     this.status = "canceled";
-    this.queue.clear(); // 清空队列中的所有任务
+    this.queue.clear();
     this.emit("canceled");
   }
 
@@ -321,7 +321,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
           this.emit("error", `Failed to convert to MP4: ${stderr}`);
           return;
         }
-        fs.unlinkSync(inputFilePath); // 删除临时 TS 文件
+        fs.unlinkSync(inputFilePath); // remove merged TS file
         this.emit("converted", outputFilePath);
       }
     );

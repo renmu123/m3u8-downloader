@@ -1,8 +1,4 @@
-## Project Name
-
-M3U8Downloader
-
-## Project Description
+# M3U8Downloader
 
 M3U8Downloader is a tool for downloading and merging M3U8 video segments. It supports concurrent downloads, retry mechanisms, and can merge downloaded TS segments into a single file, with an option to convert to MP4 format.
 
