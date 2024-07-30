@@ -258,17 +258,49 @@ describe("M3U8Downloader", () => {
     });
   });
 
-  it("should parse the M3U8 file and return an array of URLs", () => {
-    const downloader = new M3U8Downloader(m3u8Url, output) as any;
-    downloader.status = "running";
-    const m3u8Content = "#EXTM3U\nsegment1.ts\nsegment2.ts";
+  describe("parseM3U8", () => {
+    it("should parse the M3U8 file and return an array of URLs", () => {
+      const downloader = new M3U8Downloader(m3u8Url, output) as any;
+      downloader.status = "running";
+      const m3u8Content = `
+      #EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:2
+      #EXT-X-MEDIA-SEQUENCE:0
+      #EXTINF:2.000000,
+      segment0.ts
+      #EXTINF:2.000000,
+      segment1.ts
+      `;
 
-    const tsUrls = downloader.parseM3U8(m3u8Content);
+      const tsUrls = downloader.parseM3U8(m3u8Content);
+      expect(tsUrls).toEqual([
+        "http://127.0.0.1:3000/segment0.ts",
+        "http://127.0.0.1:3000/segment1.ts",
+      ]);
+    });
 
-    expect(tsUrls).toEqual([
-      "http://127.0.0.1:3000/segment1.ts",
-      "http://127.0.0.1:3000/segment2.ts",
-    ]);
+    it("should parse the M3U8 file ", () => {
+      const downloader = new M3U8Downloader(m3u8Url, output) as any;
+      downloader.status = "running";
+      const m3u8Content = `
+      #EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:2
+      #EXT-X-MEDIA-SEQUENCE:0
+      #EXTINF:2.000000,
+      transcode_live-93589rLwddnkoZwx--20240727132643_1446619_0000000.ts?cdn=tx&ct=web&d=d6122a55e9f2d9ff39d9092800001701&exper=0&nlimit=5&pt=2&sign=3e40bc9366e5fbce6cb07c7bfc008c7d&tlink=66a4c6bb&tplay=66a5535b&u=0&us=d6122a55e9f2d9ff39d9092800001701&vid=41710087
+      #EXTINF:2.000000,
+      transcode_live-93589rLwddnkoZwx--20240727132643_1446619_0000001.ts?cdn=tx&ct=web&d=d6122a55e9f2d9ff39d9092800001701&exper=0&nlimit=5&pt=2&sign=3e40bc9366e5fbce6cb07c7bfc008c7d&tlink=66a4c6bb&tplay=66a5535b&u=0&us=d6122a55e9f2d9ff39d9092800001701&vid=41710087
+      #EXTINF:2.000000,
+      `;
+
+      const tsUrls = downloader.parseM3U8(m3u8Content);
+      expect(tsUrls).toEqual([
+        "http://127.0.0.1:3000/transcode_live-93589rLwddnkoZwx--20240727132643_1446619_0000000.ts?cdn=tx&ct=web&d=d6122a55e9f2d9ff39d9092800001701&exper=0&nlimit=5&pt=2&sign=3e40bc9366e5fbce6cb07c7bfc008c7d&tlink=66a4c6bb&tplay=66a5535b&u=0&us=d6122a55e9f2d9ff39d9092800001701&vid=41710087",
+        "http://127.0.0.1:3000/transcode_live-93589rLwddnkoZwx--20240727132643_1446619_0000001.ts?cdn=tx&ct=web&d=d6122a55e9f2d9ff39d9092800001701&exper=0&nlimit=5&pt=2&sign=3e40bc9366e5fbce6cb07c7bfc008c7d&tlink=66a4c6bb&tplay=66a5535b&u=0&us=d6122a55e9f2d9ff39d9092800001701&vid=41710087",
+      ]);
+    });
   });
 
   it("should download the TS segments", async () => {

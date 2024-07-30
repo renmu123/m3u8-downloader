@@ -7,8 +7,20 @@ import { TypedEmitter } from "tiny-typed-emitter";
 import axios from "axios";
 import axiosRetry from "axios-retry";
 import PQueue from "p-queue";
+import * as m3u8Parser from "m3u8-parser";
+import { isUrl } from "./utils.js";
 
 import type { RawAxiosRequestHeaders } from "axios";
+
+// for vitest
+declare global {
+  interface Worker {}
+
+  namespace WebAssembly {
+    interface Module {}
+  }
+  interface WebSocket {}
+}
 
 interface M3U8DownloaderEvents {
   start: () => void;
@@ -207,14 +219,19 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * @param m3u8Content M3U8 file content
    */
   private parseM3U8(m3u8Content: string): string[] {
-    const baseUrl = this.m3u8Url.substring(
-      0,
-      this.m3u8Url.lastIndexOf("/") + 1
-    );
-    return m3u8Content
-      .split("\n")
-      .filter(line => line && !line.startsWith("#"))
-      .map(line => (line.startsWith("http") ? line : baseUrl + line));
+    const parser = new m3u8Parser.Parser();
+
+    parser.push(m3u8Content);
+    parser.end();
+
+    const parsedManifest = parser.manifest;
+    return (parsedManifest?.segments || []).map(segment => {
+      if (isUrl(segment.uri)) {
+        return segment.uri;
+      } else {
+        return new URL(segment.uri, this.m3u8Url).href;
+      }
+    });
   }
 
   private async downloadSegment(tsUrl: string, index: number) {
