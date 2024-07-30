@@ -107,7 +107,6 @@ M3U8Downloader extends from `EventEmitter`, and you can listen to the following 
 
 - `start` - Download started
 - `progress` - Download progress
-- `segmentDownloaded` - Single segment downloaded
 - `paused` - Download paused
 - `resumed` - Download resumed
 - `canceled` - Download canceled

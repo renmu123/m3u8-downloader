@@ -12,8 +12,11 @@ import type { RawAxiosRequestHeaders } from "axios";
 
 interface M3U8DownloaderEvents {
   start: () => void;
-  progress: (progress: { downloaded: number; total: number }) => void;
-  segmentDownloaded: (index: number, total: number) => void;
+  progress: (progress: {
+    downloadedFile: string;
+    downloaded: number;
+    total: number;
+  }) => void;
   paused: () => void;
   resumed: () => void;
   canceled: () => void;
@@ -128,9 +131,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       this.totalSegments = tsUrls.length;
 
       await this.downloadTsSegments(tsUrls);
-      console.log("downloadedFiles", this.downloadedFiles);
 
-      if (this.mergeTsSegments) {
+      if (this.options.mergeSegments) {
         const tsMediaPath = this.mergeTsSegments(this.totalSegments);
 
         if (this.options.convert2Mp4) {
@@ -154,6 +156,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   public pause() {
     if (!this.isRunning()) return;
 
+    // 正在进行的任务不会被取消
     this.queue.pause();
     this.status = "paused";
     this.emit("paused");
@@ -164,9 +167,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   public resume() {
     if (this.status !== "paused") return;
-
-    this.queue.start();
     this.status = "running";
+    this.queue.start();
     this.emit("resumed");
   }
 
@@ -215,36 +217,39 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       .map(line => (line.startsWith("http") ? line : baseUrl + line));
   }
 
+  private async downloadSegment(tsUrl: string, index: number) {
+    if (!this.isRunning()) return;
+
+    const response = await axios.get(tsUrl, {
+      responseType: "arraybuffer",
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+        ...this.options.headers,
+      },
+    });
+    const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
+    await fs.writeFile(segmentPath, response.data);
+    this.downloadedFiles.push(segmentPath);
+    this.downloadedSegments++;
+    const progress = {
+      downloadedFile: segmentPath,
+      downloaded: this.downloadedSegments,
+      total: this.totalSegments,
+    };
+    this.emit("progress", progress);
+
+    return progress;
+  }
+
   /**
    * download TS segments
    * @param tsUrls Array of TS segment URLs
    */
   private async downloadTsSegments(tsUrls: string[]) {
-    const downloadSegment = async (tsUrl: string, index: number) => {
-      if (!this.isRunning()) return;
-
-      const response = await axios.get(tsUrl, {
-        responseType: "arraybuffer",
-        headers: {
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-          ...this.options.headers,
-        },
-      });
-      const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
-      await fs.writeFile(segmentPath, response.data);
-      this.downloadedFiles.push(segmentPath);
-      this.downloadedSegments++;
-      this.emit("progress", {
-        downloaded: this.downloadedSegments,
-        total: this.totalSegments,
-      });
-      this.emit("segmentDownloaded", index, tsUrls.length);
-    };
-
     for (const [index, tsUrl] of tsUrls.entries()) {
       this.queue
-        .add(() => downloadSegment(tsUrl, index))
+        .add(() => this.downloadSegment(tsUrl, index))
         .catch(error => {
           this.emit("error", `Failed to add segment ${index} to queue`);
         });
@@ -297,7 +302,6 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         await fs.unlink(mergedFilePath);
       }
     }
-    this.downloadedFiles = [];
   }
 
   /**

@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const __dirname = dirname(fileURLToPath(import.meta.url));
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const app = express();
 
@@ -46,7 +47,12 @@ app.get("/head/video.m3u8", (req, res) => {
 });
 
 // 返回assets目录下的文件
-app.get("/:file", (req, res) => {
+app.get("/:file", async (req, res) => {
+  console.log(req.params.file);
+  // header中有delay参数时，延迟返回
+  if (req.headers.delay) {
+    await sleep(Number(req.headers.delay));
+  }
   res.sendFile(__dirname + "/assets/" + req.params.file);
 });
 

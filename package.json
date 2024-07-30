@@ -10,9 +10,11 @@
   "typings": "dist/index.d.ts",
   "scripts": {
     "dev": "tsc -w",
-    "build": "pnpm run typecheck && rimraf dist && tsc",
+    "build": "pnpm run typecheck && pnpm run test &&  rimraf dist && tsc",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "publish": "pnpm run build && pnpm publish --access=public"
+    "publish": "pnpm run build && pnpm publish --access=public",
+    "test": "vitest run",
+    "test:watch": "vitest "
   },
   "keywords": [
     "m3u8",
