@@ -12,17 +12,39 @@ app.get("/", (req, res) => {
 
 app.get("/video.m3u8", (req, res) => {
   res.send(`
-    #EXTM3U
-    #EXT-X-VERSION:3
-    #EXT-X-TARGETDURATION:10
-    #EXT-X-MEDIA-SEQUENCE:0
-    #EXTINF:10.0,
-    segment1.ts
-    #EXTINF:10.0,
-    segment2.ts
-    #EXT-X-ENDLIST
-  `);
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:10
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:10.0,
+segment0.ts
+#EXTINF:10.0,
+segment1.ts
+#EXT-X-ENDLIST`);
 });
+app.get("/head/video.m3u8", (req, res) => {
+  res.send(req.headers);
+});
+
+/**
+ * test for error m3u8
+ */
+app.get("/test.m3u8", (req, res) => {
+  res.send(`
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:10
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:10.0,
+segment0.ts
+#EXTINF:10.0,
+segment2.ts
+#EXT-X-ENDLIST`);
+});
+app.get("/head/video.m3u8", (req, res) => {
+  res.send(req.headers);
+});
+
 // 返回assets目录下的文件
 app.get("/:file", (req, res) => {
   res.sendFile(__dirname + "/assets/" + req.params.file);

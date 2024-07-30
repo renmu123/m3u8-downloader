@@ -8,6 +8,8 @@ import axios from "axios";
 import axiosRetry from "axios-retry";
 import PQueue from "p-queue";
 
+import type { RawAxiosRequestHeaders } from "axios";
+
 interface M3U8DownloaderEvents {
   start: () => void;
   progress: (progress: { downloaded: number; total: number }) => void;
@@ -27,15 +29,23 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   private queue: PQueue;
   private totalSegments: number;
   private downloadedSegments: number;
-  private isPaused: boolean;
-  private isCanceled: boolean;
   private downloadedFiles: string[];
+  status:
+    | "pending"
+    | "running"
+    | "paused"
+    | "canceled"
+    | "completed"
+    | "error" = "pending";
   private options: {
     concurrency: number;
     convert2Mp4: boolean;
+    mergeSegments: boolean;
     tempDir: string;
     ffmpegPath: string;
     retries: number;
+    clean: boolean;
+    headers: RawAxiosRequestHeaders;
   };
 
   /**
@@ -43,9 +53,12 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * @param options
    * @param options.concurrency Number of segments to download concurrently
    * @param options.tempDir Temporary directory to store downloaded segments
-   * @param options.convert2Mp4 Whether to convert2Mp4 downloaded segments into a single file
-   * @param options.ffmpegPath Path to ffmpeg binary
+   * @param options.mergeSegments Whether to merge downloaded segments into a single file
+   * @param options.convert2Mp4 Whether to convert2Mp4 downloaded segments into a single file, you must open mergeSegments
+   * @param options.ffmpegPath Path to ffmpeg binary if you open convert2Mp4
    * @param options.retries Number of retries for downloading segments
+   * @param options.clean Whether to clean up downloaded segments after download is error or canceled
+   * @param options.headers Headers to be sent with the HTTP request
    */
   constructor(
     m3u8Url: string,
@@ -54,17 +67,23 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       concurrency?: number;
       tempDir?: string;
       convert2Mp4?: boolean;
+      mergeSegments?: boolean;
       ffmpegPath?: string;
       retries?: number;
+      clean?: boolean;
+      headers?: RawAxiosRequestHeaders;
     } = {}
   ) {
     super();
     const defaultOptions = {
       concurrency: 5,
       convert2Mp4: false,
+      mergeSegments: true,
       tempDir: os.tmpdir(),
       retries: 3,
       ffmpegPath: "ffmpeg",
+      clean: true,
+      headers: {},
     };
     this.options = Object.assign(defaultOptions, options);
     this.m3u8Url = m3u8Url;
@@ -73,8 +92,6 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     this.queue = new PQueue({ concurrency: this.options.concurrency });
     this.totalSegments = 0;
     this.downloadedSegments = 0;
-    this.isPaused = false;
-    this.isCanceled = false;
     this.downloadedFiles = [];
 
     axiosRetry(axios, {
@@ -83,7 +100,14 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     });
 
     this.on("canceled", this.cleanUpDownloadedFiles);
-    this.on("error", this.cleanUpDownloadedFiles);
+    this.on("error", async error => {
+      console.error("error", error);
+      this.status = "error";
+      this.cleanUpDownloadedFiles();
+    });
+    this.on("completed", () => {
+      this.status = "completed";
+    });
   }
 
   /**
@@ -92,6 +116,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   public async download() {
     try {
       this.emit("start");
+      this.status = "running";
       if (!(await fs.pathExists(this.tempDir))) {
         await fs.mkdir(this.tempDir, { recursive: true });
       }
@@ -103,13 +128,20 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       this.totalSegments = tsUrls.length;
 
       await this.downloadTsSegments(tsUrls);
-      const tsMediaPath = this.mergeTsSegments(tsUrls);
-      if (this.isCanceled) return;
+      console.log("downloadedFiles", this.downloadedFiles);
 
-      if (this.options.convert2Mp4) {
-        this.convertToMp4(tsMediaPath);
+      if (this.mergeTsSegments) {
+        const tsMediaPath = this.mergeTsSegments(this.totalSegments);
+
+        if (this.options.convert2Mp4) {
+          this.convertToMp4(tsMediaPath);
+        }
       }
 
+      if (!this.isRunning()) {
+        this.cleanUpDownloadedFiles();
+        return;
+      }
       this.emit("completed");
     } catch (error) {
       this.emit("error", error);
@@ -120,10 +152,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * pause download
    */
   public pause() {
-    if (this.isCanceled) return;
+    if (!this.isRunning()) return;
 
     this.queue.pause();
-    this.isPaused = true;
+    this.status = "paused";
     this.emit("paused");
   }
 
@@ -131,10 +163,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * resume download
    */
   public resume() {
-    if (this.isCanceled) return;
+    if (this.status !== "paused") return;
 
     this.queue.start();
-    this.isPaused = false;
+    this.status = "running";
     this.emit("resumed");
   }
 
@@ -142,7 +174,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * cancel download
    */
   public cancel() {
-    this.isCanceled = true;
+    if (["completed", "canceled", "error"].includes(this.status)) return;
+
+    this.status = "canceled";
     this.queue.clear(); // 清空队列中的所有任务
     this.emit("canceled");
   }
@@ -152,7 +186,13 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   private async getM3U8(): Promise<string> {
     try {
-      const { data: m3u8Content } = await axios.get(this.m3u8Url);
+      const { data: m3u8Content } = await axios.get(this.m3u8Url, {
+        headers: {
+          "user-agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+          ...this.options.headers,
+        },
+      });
       return m3u8Content;
     } catch (error) {
       this.emit("error", "Failed to download m3u8 file");
@@ -181,33 +221,33 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   private async downloadTsSegments(tsUrls: string[]) {
     const downloadSegment = async (tsUrl: string, index: number) => {
-      if (this.isCanceled) return;
+      if (!this.isRunning()) return;
 
-      try {
-        const response = await axios.get(tsUrl, {
-          responseType: "arraybuffer",
-        });
-        const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
-        await fs.writeFile(segmentPath, response.data);
-        this.downloadedFiles.push(segmentPath);
-        this.downloadedSegments++;
-        this.emit("progress", {
-          downloaded: this.downloadedSegments,
-          total: this.totalSegments,
-        });
-        this.emit("segmentDownloaded", index, tsUrls.length);
-      } catch (error) {
-        this.emit("error", `Failed to download segment ${index}`);
-        throw error;
-      }
+      const response = await axios.get(tsUrl, {
+        responseType: "arraybuffer",
+        headers: {
+          "user-agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+          ...this.options.headers,
+        },
+      });
+      const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
+      await fs.writeFile(segmentPath, response.data);
+      this.downloadedFiles.push(segmentPath);
+      this.downloadedSegments++;
+      this.emit("progress", {
+        downloaded: this.downloadedSegments,
+        total: this.totalSegments,
+      });
+      this.emit("segmentDownloaded", index, tsUrls.length);
     };
 
     for (const [index, tsUrl] of tsUrls.entries()) {
       this.queue
         .add(() => downloadSegment(tsUrl, index))
-        .catch(error =>
-          this.emit("error", `Failed to add segment ${index} to queue`)
-        );
+        .catch(error => {
+          this.emit("error", `Failed to add segment ${index} to queue`);
+        });
     }
 
     await this.queue.onIdle();
@@ -217,8 +257,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * merge TS segments into a single file
    * @param tsUrls Array of TS segment URLs
    */
-  private mergeTsSegments(tsUrls: string[], deleteSource: boolean = true) {
-    if (this.isCanceled) return;
+  private mergeTsSegments(total: number, deleteSource: boolean = true) {
+    if (!this.isRunning()) return;
     let mergedFilePath = path.resolve(this.tempDir, "output.ts");
 
     if (!this.options.convert2Mp4) {
@@ -226,8 +266,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     }
     const writeStream = fs.createWriteStream(mergedFilePath);
 
-    tsUrls.forEach((_, index) => {
-      if (this.isCanceled) return;
+    for (let index = 0; index < total; index++) {
+      if (!this.isRunning()) return;
 
       const segmentPath = path.resolve(this.tempDir, `segment${index}.ts`);
       if (fs.existsSync(segmentPath)) {
@@ -237,12 +277,13 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       } else {
         this.emit("error", `Segment ${index} is missing`);
       }
-    });
+    }
 
     writeStream.end();
     return mergedFilePath;
   }
   private async cleanUpDownloadedFiles() {
+    if (!this.options.clean) return;
     await Promise.all(
       this.downloadedFiles.map(async file => {
         if (await fs.pathExists(file)) {
@@ -264,6 +305,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * @param tsMediaPath Path to merged TS file
    */
   private convertToMp4(tsMediaPath: string) {
+    if (!this.isRunning()) return;
+
     const inputFilePath = tsMediaPath;
     const outputFilePath = this.output;
 
@@ -278,5 +321,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         this.emit("converted", outputFilePath);
       }
     );
+  }
+
+  isRunning() {
+    return this.status === "running";
   }
 }

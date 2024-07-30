@@ -20,7 +20,7 @@ M3U8Downloader is a tool for downloading and merging M3U8 video segments. It sup
 Install using npm:
 
 ```bash
-npm install
+npm install @renmu/m3u8-downloader
 ```
 
 ## Usage
@@ -28,25 +28,53 @@ npm install
 ### Initialization
 
 ```typescript
-import M3U8Downloader from "./path/to/M3U8Downloader";
+import M3U8Downloader from "@renmu/m3u8-downloader";
 
+// download ts segments and convert to single ts file
 const downloader = new M3U8Downloader(
   "https://example.com/path/to/playlist.m3u8",
-  "output.mp4", // mp4 ext
+  "/path/output.ts", // ts ext
+  {
+    convert2Mp4: false,
+  }
+);
+
+// download ts segments and convert to single mp4 file
+const downloader = new M3U8Downloader(
+  "https://example.com/path/to/playlist.m3u8",
+  "/path/output.mp4", // mp4 ext
   {
     convert2Mp4: true,
     ffmpegPath: "/usr/local/bin/ffmpeg",
   }
 );
 
-// no convert
+// download ts segments
 const downloader = new M3U8Downloader(
   "https://example.com/path/to/playlist.m3u8",
-  "output.ts", // ts ext
+  "anything",
   {
-    convert2Mp4: false,
+    mergeSegments: false,
+    tempDir: outputDir, // the directory to store downloaded segments
   }
 );
+```
+
+### Options
+
+```js
+/**
+ * @param m3u8Url M3U8 URL
+ * @param options
+ * @param options.concurrency Number of segments to download concurrently
+ * @param options.tempDir Temporary directory to store downloaded segments
+ * @param options.mergeSegments Whether to merge downloaded segments into a single file
+ * @param options.convert2Mp4 Whether to convert2Mp4 downloaded segments into a single file, you must open mergeSegments
+ * @param options.ffmpegPath Path to ffmpeg binary if you open convert2Mp4
+ * @param options.retries Number of retries for downloading segments
+ * @param options.clean Whether to clean up downloaded segments after download is error or canceled
+ * @param options.headers Headers to be sent with the HTTP request
+ * */
 ```
 
 ### Start Download
@@ -106,7 +134,3 @@ downloader.on("error", error => {
 ## License
 
 MIT License
-
----
-
-With these steps, you can easily use M3U8Downloader to download and process M3U8 video segments.
