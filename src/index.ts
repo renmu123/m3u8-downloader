@@ -98,7 +98,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       if (!(await fs.pathExists(path.dirname(this.output)))) {
         throw new Error("Output directory does not exist");
       }
-      const m3u8Content = await this.downloadM3U8();
+      const m3u8Content = await this.getM3U8();
       const tsUrls = this.parseM3U8(m3u8Content);
       this.totalSegments = tsUrls.length;
 
@@ -150,7 +150,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   /**
    * download M3U8 file
    */
-  async downloadM3U8(): Promise<string> {
+  private async getM3U8(): Promise<string> {
     try {
       const { data: m3u8Content } = await axios.get(this.m3u8Url);
       return m3u8Content;
@@ -164,7 +164,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * parse M3U8 file and return an array of URLs
    * @param m3u8Content M3U8 file content
    */
-  parseM3U8(m3u8Content: string): string[] {
+  private parseM3U8(m3u8Content: string): string[] {
     const baseUrl = this.m3u8Url.substring(
       0,
       this.m3u8Url.lastIndexOf("/") + 1
@@ -217,7 +217,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * merge TS segments into a single file
    * @param tsUrls Array of TS segment URLs
    */
-  private mergeTsSegments(tsUrls: string[]) {
+  private mergeTsSegments(tsUrls: string[], deleteSource: boolean = true) {
     if (this.isCanceled) return;
     let mergedFilePath = path.resolve(this.tempDir, "output.ts");
 
@@ -233,7 +233,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       if (fs.existsSync(segmentPath)) {
         const segmentData = fs.readFileSync(segmentPath);
         writeStream.write(segmentData);
-        fs.unlinkSync(segmentPath); // 删除临时 TS 片段文件
+        if (deleteSource) fs.unlinkSync(segmentPath); // 删除临时 TS 片段文件
       } else {
         this.emit("error", `Segment ${index} is missing`);
       }

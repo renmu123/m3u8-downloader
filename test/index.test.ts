@@ -1,68 +1,94 @@
+import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { expect, describe, it, vi } from "vitest";
+import axios from "axios";
+import { expect, describe, it, vi, afterEach, beforeEach } from "vitest";
 
 import M3U8Downloader from "../src/index.js";
+import { serverStart } from "./express.js";
+
+export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("M3U8Downloader", () => {
-  const m3u8Url = "https://example.com/video.m3u8";
+  const m3u8Url = "http://127.0.0.1:3000/video.m3u8";
   const output = "/path/to/output.mp4";
-
-  it("should download the M3U8 file", async () => {
-    const output = path.join(os.tmpdir(), "output.mp4");
-    const downloader = new M3U8Downloader(m3u8Url, output);
-    const m3u8Content = "M3U8 file content";
-
-    vi.spyOn(downloader, "downloadM3U8").mockResolvedValue(m3u8Content);
-
-    await downloader.download();
-
-    expect(downloader.downloadM3U8).toHaveBeenCalled();
-    expect(downloader.downloadM3U8).toHaveBeenCalledWith();
+  const tempDir = path.join(os.tmpdir(), "m3u8-downloader");
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir);
+  }
+  serverStart();
+  it("should express return", async () => {
+    const data = await axios.get("http://localhost:3000");
+    expect(data.data).toEqual("Hello World!");
+  });
+  it("should get the m3u8 content", async () => {
+    const downloader = new M3U8Downloader(m3u8Url, output) as any;
+    const data = await axios.get(m3u8Url);
+    const data2 = await downloader.getM3U8();
+    expect(data.data).toEqual(data2);
   });
 
   it("should parse the M3U8 file and return an array of URLs", () => {
-    const downloader = new M3U8Downloader(m3u8Url, output);
+    const downloader = new M3U8Downloader(m3u8Url, output) as any;
     const m3u8Content = "#EXTM3U\nsegment1.ts\nsegment2.ts";
 
     const tsUrls = downloader.parseM3U8(m3u8Content);
 
     expect(tsUrls).toEqual([
-      "https://example.com/segment1.ts",
-      "https://example.com/segment2.ts",
+      "http://127.0.0.1:3000/segment1.ts",
+      "http://127.0.0.1:3000/segment2.ts",
     ]);
   });
 
   it("should download the TS segments", async () => {
-    const downloader = new M3U8Downloader(m3u8Url, output) as any;
+    const downloader = new M3U8Downloader(m3u8Url, output, {
+      tempDir,
+    }) as any;
     const tsUrls = [
-      "https://example.com/segment1.ts",
-      "https://example.com/segment2.ts",
+      "http://127.0.0.1:3000/segment01.ts",
+      "http://127.0.0.1:3000/segment02.ts",
     ];
 
-    vi.spyOn(downloader, "downloadTsSegments").mockImplementation(async () => {
-      // Simulate downloading segments
-      await new Promise(resolve => setTimeout(resolve, 100));
+    let downloadSegment = 0;
+    downloader.on("progress", () => {
+      downloadSegment += 1;
     });
-
     await downloader.downloadTsSegments(tsUrls);
+    expect(downloadSegment).toEqual(tsUrls.length);
+    expect(fs.existsSync(path.join(tempDir, "segment0.ts"))).toBeTruthy();
+    expect(fs.existsSync(path.join(tempDir, "segment1.ts"))).toBeTruthy();
 
-    expect(downloader.downloadTsSegments).toHaveBeenCalled();
-    expect(downloader.downloadTsSegments).toHaveBeenCalledWith(tsUrls);
+    // clean
+    if (fs.existsSync(path.join(tempDir, "segment0.ts"))) {
+      fs.unlinkSync(path.join(tempDir, "segment0.ts"));
+    }
+    if (fs.existsSync(path.join(tempDir, "segment1.ts"))) {
+      fs.unlinkSync(path.join(tempDir, "segment1.ts"));
+    }
   });
 
-  it("should merge the TS segments into a single file", () => {
-    const output = "/path/to/output.mp4";
-    const downloader = new M3U8Downloader(m3u8Url, output) as any;
+  it("should merge the TS segments into a single file", async () => {
+    const output = path.join(os.tmpdir(), "m3u8-downloader", "output.ts");
+    const tempDir = path.join(os.tmpdir(), "m3u8-downloader");
+
+    const downloader = new M3U8Downloader(m3u8Url, output, {
+      tempDir,
+    }) as any;
     const tsUrls = [
-      "https://example.com/segment1.ts",
-      "https://example.com/segment2.ts",
+      "http://127.0.0.1:3000/segment01.ts",
+      "http://127.0.0.1:3000/segment02.ts",
     ];
 
-    const mergedFilePath = downloader.mergeTsSegments(tsUrls);
+    const mergedFilePath = await downloader.mergeTsSegments(tsUrls, false);
+    expect(mergedFilePath).toEqual(output);
+    expect(fs.existsSync(output)).toBeTruthy();
 
-    expect(mergedFilePath).toEqual("/path/to/output.mp4");
+    // clean
+    if (fs.existsSync(output)) {
+      fs.unlinkSync(output);
+    }
   });
 
   it("should convert the merged TS file to MP4", () => {
