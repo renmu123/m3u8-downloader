@@ -2,7 +2,9 @@
 
 M3U8Downloader is a tool for downloading and merging M3U8 video segments. It supports concurrent downloads, retry mechanisms, and can merge downloaded TS segments into a single file, with an option to convert to MP4 format.
 
-[![codecov](https://codecov.io/github/renmu123/m3u8-downloader/graph/badge.svg?token=08MBSCPIMF)](https://codecov.io/github/renmu123/m3u8-downloader)
+<p >
+  <a href="https://codecov.io/github/renmu123/m3u8-downloader" ><img src="https://codecov.io/github/renmu123/m3u8-downloader/graph/badge.svg?token=08MBSCPIMF"/></a>
+</p>
 
 ## Features
 
@@ -71,7 +73,7 @@ const downloader = new M3U8Downloader(
  * @param options.ffmpegPath Path to ffmpeg binary if you open convert2Mp4
  * @param options.retries Number of retries for downloading segments
  * @param options.clean Whether to clean up downloaded segments after download is error or canceled
- * @param options.headers Headers to be sent with the HTTP request
+ * @param options.headers Axios headers to be sent with the HTTP request
  * */
 ```
 
