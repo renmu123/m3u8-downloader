@@ -2,9 +2,10 @@ name: ci
 
 on:
   push:
-    *
+    branches: main
   pull_request:
-    branches: v2
+    branches: main
+  workflow_dispatch:
 
 jobs:
   build:
