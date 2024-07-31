@@ -1,6 +1,6 @@
 {
   "name": "@renmu/m3u8-downloader",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "m3u8 downloader ",
   "homepage": "https://github.com/renmu123/m3u8-downloader",
   "type": "module",
