@@ -169,9 +169,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     if (!this.isRunning()) return;
 
     // running in queue will not be paused
-    this.queue.pause();
     this.status = "paused";
     this.emit("paused");
+    this.queue.pause();
   }
 
   /**
@@ -180,8 +180,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
   public resume() {
     if (this.status !== "paused") return;
     this.status = "running";
-    this.queue.start();
     this.emit("resumed");
+    this.queue.start();
   }
 
   /**
@@ -191,8 +191,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     if (["completed", "canceled", "error"].includes(this.status)) return;
 
     this.status = "canceled";
-    this.queue.clear();
     this.emit("canceled");
+    this.queue.clear();
   }
 
   /**

@@ -1,5 +1,5 @@
 import { isUrl } from "../src/utils.js";
-import { expect, describe, it, vi, afterEach, beforeEach } from "vitest";
+import { expect, describe, it } from "vitest";
 
 describe("isUrl", () => {
   it("should return true for valid HTTP URL", () => {

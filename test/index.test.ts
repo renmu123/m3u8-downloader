@@ -11,6 +11,12 @@ import { serverStart } from "./express.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const uuid = () => Math.random().toString(36).slice(2);
+const safeRm = (path: string) => {
+  if (fs.existsSync(path)) {
+    fs.removeSync(path);
+  }
+};
 
 describe("M3U8Downloader", () => {
   const m3u8Url = "http://127.0.0.1:3000/video.m3u8";
@@ -45,8 +51,9 @@ describe("M3U8Downloader", () => {
     });
   });
 
-  describe("download", () => {
+  describe.concurrent("download", () => {
     it("should download success", async ({ onTestFinished }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -66,10 +73,14 @@ describe("M3U8Downloader", () => {
         if (fs.existsSync(output)) {
           fs.unlinkSync(output);
         }
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
       });
     });
-    it("should download segment failure", async () => {
+    it("should download segment failure", async ({ onTestFinished }) => {
       const m3u8Url = "http://127.0.0.1:3000/test.m3u8";
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -84,11 +95,19 @@ describe("M3U8Downloader", () => {
       expect(fs.existsSync(output)).toBeFalsy();
       expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeFalsy();
       expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+
+      onTestFinished(() => {
+        // clean
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
+      });
     });
     it("should not merge when mergeSegments is false", async ({
       onTestFinished,
     }) => {
       const m3u8Url = "http://127.0.0.1:3000/video.m3u8";
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -112,27 +131,31 @@ describe("M3U8Downloader", () => {
         if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
           fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
         }
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
       });
     });
   });
-  describe("pause", () => {
+  describe.concurrent("pause", () => {
     it("should pause the download", async ({ onTestFinished }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
         convert2Mp4: false,
         segmentsDir,
         headers: {
-          delay: 1000,
+          delay: 500,
         },
         concurrency: 1,
       }) as any;
 
       downloader.download();
-      await sleep(900);
+      await sleep(400);
       downloader.pause();
       expect(downloader.status).toEqual("paused");
-      await sleep(1300);
+      await sleep(200);
       expect(downloader.downloadedFiles.length).toEqual(1);
 
       onTestFinished(() => {
@@ -143,9 +166,13 @@ describe("M3U8Downloader", () => {
         if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
           fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
         }
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
       });
     });
     it("should pause the download and resume", async ({ onTestFinished }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -153,7 +180,6 @@ describe("M3U8Downloader", () => {
         segmentsDir,
         headers: {
           delay: 500,
-          timeout: 5000,
         },
         concurrency: 1,
         mergeSegments: false,
@@ -173,7 +199,7 @@ describe("M3U8Downloader", () => {
       downloader.pause();
       expect(downloader.status).toEqual("paused");
 
-      await sleep(400);
+      await sleep(300);
       downloader.resume();
       expect(downloader.status).toEqual("running");
 
@@ -194,11 +220,15 @@ describe("M3U8Downloader", () => {
         if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
           fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
         }
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
       });
     });
   });
-  describe("cancel", () => {
-    it("should cancel the download", async () => {
+  describe.concurrent("cancel", () => {
+    it("should cancel the download", async ({ onTestFinished }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -215,15 +245,23 @@ describe("M3U8Downloader", () => {
       await sleep(400);
       downloader.cancel();
       expect(downloader.status).toEqual("canceled");
-      await sleep(800);
+      await sleep(200);
       expect(downloader.downloadedFiles.length).toEqual(1);
       // has been auto clean
       expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeFalsy();
       expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+
+      onTestFinished(() => {
+        // clean
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
+        }
+      });
     });
     it("should not clean when cancel the download", async ({
       onTestFinished,
     }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
@@ -240,7 +278,7 @@ describe("M3U8Downloader", () => {
       await sleep(400);
       downloader.cancel();
       expect(downloader.status).toEqual("canceled");
-      await sleep(800);
+      await sleep(200);
       expect(downloader.downloadedFiles.length).toEqual(1);
       // has been auto clean
       expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
@@ -253,6 +291,9 @@ describe("M3U8Downloader", () => {
         }
         if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
           fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
+        }
+        if (fs.existsSync(segmentsDir)) {
+          fs.rmdirSync(segmentsDir);
         }
       });
     });
@@ -303,7 +344,7 @@ describe("M3U8Downloader", () => {
     });
   });
 
-  it("should download the TS segments", async () => {
+  it("should download the TS segments", async ({ onTestFinished }) => {
     const downloader = new M3U8Downloader(m3u8Url, output, {
       segmentsDir,
     }) as any;
@@ -322,16 +363,20 @@ describe("M3U8Downloader", () => {
     expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
     expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeTruthy();
 
-    // clean
-    if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-      fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-    }
-    if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-      fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-    }
+    onTestFinished(() => {
+      // clean
+      if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
+        fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
+      }
+      if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
+        fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
+      }
+    });
   });
 
-  it("should merge the TS segments into a single file", async () => {
+  it("should merge the TS segments into a single file", async ({
+    onTestFinished,
+  }) => {
     const segmentsDir = path.join(__dirname, "assets");
     const output = path.join(segmentsDir, "output.ts");
 
@@ -342,15 +387,16 @@ describe("M3U8Downloader", () => {
 
     const mergedFilePath = await downloader.mergeTsSegments(2, false);
     expect(mergedFilePath).toEqual(output);
-    await sleep(100);
+    await sleep(50);
     expect(fs.existsSync(output)).toBeTruthy();
     expect(fs.readFileSync(output).length).toEqual(8868524);
 
-    // clean
-    if (fs.existsSync(output)) {
-      console.log("delete file", output);
-      fs.unlinkSync(output);
-    }
+    onTestFinished(() => {
+      // clean
+      if (fs.existsSync(output)) {
+        fs.unlinkSync(output);
+      }
+    });
   });
 
   it("should convert the merged TS file to MP4", () => {
