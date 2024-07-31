@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import axios from "axios";
-import { expect, describe, it, vi, afterEach, beforeEach } from "vitest";
+import { expect, describe, it, vi } from "vitest";
 
 import M3U8Downloader from "../src/index.js";
 import { serverStart } from "./express.js";
@@ -70,12 +70,8 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(output)) {
-          fs.unlinkSync(output);
-        }
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(output);
+        safeRm(segmentsDir);
       });
     });
     it("should download segment failure", async ({ onTestFinished }) => {
@@ -97,10 +93,7 @@ describe("M3U8Downloader", () => {
       expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
 
       onTestFinished(() => {
-        // clean
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(segmentsDir);
       });
     });
     it("should not merge when mergeSegments is false", async ({
@@ -125,15 +118,9 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-        }
-        if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-        }
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(path.join(segmentsDir, "segment0.ts"));
+        safeRm(path.join(segmentsDir, "segment1.ts"));
+        safeRm(segmentsDir);
       });
     });
   });
@@ -160,15 +147,9 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-        }
-        if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-        }
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(path.join(segmentsDir, "segment0.ts"));
+        safeRm(path.join(segmentsDir, "segment1.ts"));
+        safeRm(segmentsDir);
       });
     });
     it("should pause the download and resume", async ({ onTestFinished }) => {
@@ -214,15 +195,9 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-        }
-        if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-        }
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(path.join(segmentsDir, "segment0.ts"));
+        safeRm(path.join(segmentsDir, "segment1.ts"));
+        safeRm(segmentsDir);
       });
     });
   });
@@ -253,9 +228,7 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(segmentsDir);
       });
     });
     it("should not clean when cancel the download", async ({
@@ -286,15 +259,9 @@ describe("M3U8Downloader", () => {
 
       onTestFinished(() => {
         // clean
-        if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-        }
-        if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-          fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-        }
-        if (fs.existsSync(segmentsDir)) {
-          fs.rmdirSync(segmentsDir);
-        }
+        safeRm(path.join(segmentsDir, "segment0.ts"));
+        safeRm(path.join(segmentsDir, "segment1.ts"));
+        safeRm(segmentsDir);
       });
     });
   });
@@ -365,12 +332,8 @@ describe("M3U8Downloader", () => {
 
     onTestFinished(() => {
       // clean
-      if (fs.existsSync(path.join(segmentsDir, "segment0.ts"))) {
-        fs.unlinkSync(path.join(segmentsDir, "segment0.ts"));
-      }
-      if (fs.existsSync(path.join(segmentsDir, "segment1.ts"))) {
-        fs.unlinkSync(path.join(segmentsDir, "segment1.ts"));
-      }
+      safeRm(path.join(segmentsDir, "segment0.ts"));
+      safeRm(path.join(segmentsDir, "segment1.ts"));
     });
   });
 
@@ -393,9 +356,7 @@ describe("M3U8Downloader", () => {
 
     onTestFinished(() => {
       // clean
-      if (fs.existsSync(output)) {
-        fs.unlinkSync(output);
-      }
+      safeRm(output);
     });
   });
 
