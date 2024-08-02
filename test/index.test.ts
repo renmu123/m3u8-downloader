@@ -59,14 +59,17 @@ describe("M3U8Downloader", () => {
       const downloader = new M3U8Downloader(m3u8Url, output, {
         convert2Mp4: false,
         segmentsDir,
-        // clean: false,
-      }) as any;
+        clean: true,
+      });
 
       await downloader.download();
       await sleep(100);
 
+      expect(downloader.status).toEqual("completed");
       expect(fs.existsSync(output)).toBeTruthy();
       expect(fs.readFileSync(output).length).toEqual(8868524);
+      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeFalsy();
+      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
 
       onTestFinished(() => {
         // clean
@@ -74,15 +77,68 @@ describe("M3U8Downloader", () => {
         safeRm(segmentsDir);
       });
     });
-    it("should download segment failure", async ({ onTestFinished }) => {
+    it("should download segment failure ", async ({ onTestFinished }) => {
       const m3u8Url = "http://127.0.0.1:3000/test.m3u8";
       const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(m3u8Url, output, {
         convert2Mp4: false,
+        clean: false,
         segmentsDir,
-      }) as any;
+      });
+
+      await downloader.download();
+      await sleep(100);
+
+      expect(downloader.status).toEqual("error");
+      expect(fs.existsSync(output)).toBeFalsy();
+      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
+      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+
+      onTestFinished(() => {
+        safeRm(segmentsDir);
+      });
+    });
+    it("should download segment suceess and no clean", async ({
+      onTestFinished,
+    }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
+      const output = path.join(segmentsDir, "output.ts");
+
+      const downloader = new M3U8Downloader(m3u8Url, output, {
+        convert2Mp4: false,
+        segmentsDir,
+        clean: false,
+      });
+
+      await downloader.download();
+      await sleep(100);
+
+      expect(downloader.status).toEqual("completed");
+      expect(fs.existsSync(output)).toBeTruthy();
+      expect(fs.readFileSync(output).length).toEqual(8868524);
+      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeFalsy();
+      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+
+      onTestFinished(() => {
+        // clean
+        safeRm(output);
+        safeRm(segmentsDir);
+      });
+    });
+    it("should download segment failure and auto clean", async ({
+      onTestFinished,
+    }) => {
+      const m3u8Url = "http://127.0.0.1:3000/test.m3u8";
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
+      const output = path.join(segmentsDir, "output.ts");
+
+      const downloader = new M3U8Downloader(m3u8Url, output, {
+        convert2Mp4: false,
+        clean: true,
+        segmentsDir,
+      });
 
       await downloader.download();
       await sleep(100);
