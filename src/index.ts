@@ -289,7 +289,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     const writeStream = fs.createWriteStream(mergedFilePath);
 
     for (let index = 0; index < total; index++) {
-      if (!this.isRunning()) return;
+      if (!this.isRunning()) {
+        writeStream.end();
+        return;
+      }
 
       const segmentPath = path.resolve(this.segmentsDir, `segment${index}.ts`);
       if (fs.existsSync(segmentPath)) {
@@ -298,6 +301,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         if (deleteSource) fs.unlinkSync(segmentPath); // 删除临时 TS 片段文件
       } else {
         this.emit("error", `Segment ${index} is missing`);
+        writeStream.end();
+        return;
       }
     }
 
