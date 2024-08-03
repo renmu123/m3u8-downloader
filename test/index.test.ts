@@ -416,17 +416,30 @@ describe("M3U8Downloader", () => {
     });
   });
 
-  it("should convert the merged TS file to MP4", () => {
-    const downloader = new M3U8Downloader(m3u8Url, output) as any;
-    const tsMediaPath = "/path/to/segmentsDir/output.ts";
+  describe("convertToMp4", () => {
+    it("should convert the merged TS file to MP4", () => {
+      const downloader = new M3U8Downloader(m3u8Url, output) as any;
+      const tsMediaPath = "/path/to/segmentsDir/output.ts";
 
-    vi.spyOn(downloader, "convertToMp4").mockImplementation(() => {
-      // Simulate converting to MP4
+      vi.spyOn(downloader, "convertToMp4").mockImplementation(() => {
+        // Simulate converting to MP4
+      });
+
+      downloader.convertToMp4(tsMediaPath);
+
+      expect(downloader.convertToMp4).toHaveBeenCalled();
+      expect(downloader.convertToMp4).toHaveBeenCalledWith(tsMediaPath);
     });
 
-    downloader.convertToMp4(tsMediaPath);
+    it.skip("should convert the merged TS file to MP4 with no mock", async () => {
+      const segmentsDir = path.join(__dirname, "assets");
+      const tsMediaPath = path.join(segmentsDir, "segment0.ts");
+      const output = path.join(segmentsDir, "output.mp4");
+      const downloader = new M3U8Downloader(m3u8Url, output) as any;
+      downloader.status = "running";
 
-    expect(downloader.convertToMp4).toHaveBeenCalled();
-    expect(downloader.convertToMp4).toHaveBeenCalledWith(tsMediaPath);
+      await downloader.convertToMp4(tsMediaPath);
+      // await sleep(500);
+    });
   });
 });

@@ -148,12 +148,12 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         const tsMediaPath = this.mergeTsSegments(this.totalSegments);
 
         if (this.options.convert2Mp4) {
-          this.convertToMp4(tsMediaPath);
+          await this.convertToMp4(tsMediaPath);
         }
       }
 
       if (!this.isRunning()) {
-        this.cleanUpDownloadedFiles();
+        await this.cleanUpDownloadedFiles();
         return;
       }
       this.emit("completed");
@@ -330,23 +330,27 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * convert merged TS file to MP4
    * @param tsMediaPath Path to merged TS file
    */
-  private convertToMp4(tsMediaPath: string) {
+  private async convertToMp4(tsMediaPath: string) {
     if (!this.isRunning()) return;
 
     const inputFilePath = tsMediaPath;
     const outputFilePath = this.output;
 
-    exec(
-      `"${this.options.ffmpegPath}" -i "${inputFilePath}" -c copy "${outputFilePath}"`,
-      (error, stdout, stderr) => {
-        if (error) {
-          this.emit("error", `Failed to convert to MP4: ${stderr}`);
-          return;
+    return new Promise((resolve, reject) => {
+      exec(
+        `"${this.options.ffmpegPath}" -i "${inputFilePath}" -c copy "${outputFilePath}"`,
+        (error, stdout, stderr) => {
+          if (error) {
+            this.emit("error", `Failed to convert to MP4: ${stderr}`);
+            reject(error);
+            return;
+          }
+          fs.unlinkSync(inputFilePath); // remove merged TS file
+          resolve(outputFilePath);
+          this.emit("converted", outputFilePath);
         }
-        fs.unlinkSync(inputFilePath); // remove merged TS file
-        this.emit("converted", outputFilePath);
-      }
-    );
+      );
+    });
   }
 
   isRunning() {
