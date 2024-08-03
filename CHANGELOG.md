@@ -1,3 +1,8 @@
+# 0.2.1
+
+1. fix: await convertToMp4 and cleanUpDownloadedFiles in M3U8Downloader
+2. chore: Fix bug in M3U8Downloader when segments are missing
+
 # 0.2.0
 
 1. add unit test
