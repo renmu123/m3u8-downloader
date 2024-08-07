@@ -1,6 +1,6 @@
 {
   "name": "@renmu/m3u8-downloader",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "m3u8 downloader ",
   "homepage": "https://github.com/renmu123/m3u8-downloader",
   "type": "module",
@@ -12,7 +12,7 @@
     "dev": "tsc -w",
     "build": "pnpm run typecheck && pnpm run test &&  rimraf dist && tsc",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "publish": "pnpm run build && pnpm publish --access=public",
+    "release": "pnpm run build && pnpm publish --access=public",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"

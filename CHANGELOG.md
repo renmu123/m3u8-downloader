@@ -1,3 +1,8 @@
+# 0.3.0
+
+1. fix: Optimize performance for merging TS segments
+2. chore: update download segment name from `segment1.ts` to `segment00001.ts`
+
 # 0.2.1
 
 1. fix: await convertToMp4 and cleanUpDownloadedFiles in M3U8Downloader

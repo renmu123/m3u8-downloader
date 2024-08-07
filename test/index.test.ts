@@ -93,8 +93,12 @@ describe("M3U8Downloader", () => {
 
       expect(downloader.status).toEqual("error");
       expect(fs.existsSync(output)).toBeFalsy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00000.ts"))
+      ).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00001.ts"))
+      ).toBeFalsy();
 
       onTestFinished(() => {
         safeRm(segmentsDir);
@@ -169,13 +173,15 @@ describe("M3U8Downloader", () => {
 
       expect(downloader.status).toEqual("completed");
       expect(fs.existsSync(output)).toBeFalsy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00000.ts"))
+      ).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00001.ts"))
+      ).toBeTruthy();
 
       onTestFinished(() => {
         // clean
-        safeRm(path.join(segmentsDir, "segment0.ts"));
-        safeRm(path.join(segmentsDir, "segment1.ts"));
         safeRm(segmentsDir);
       });
     });
@@ -198,7 +204,7 @@ describe("M3U8Downloader", () => {
       await sleep(400);
       downloader.pause();
       expect(downloader.status).toEqual("paused");
-      await sleep(200);
+      await sleep(300);
       expect(downloader.downloadedFiles.length).toEqual(1);
 
       onTestFinished(() => {
@@ -246,13 +252,15 @@ describe("M3U8Downloader", () => {
       expect(hasPaused).toBeTruthy();
       expect(hasResumed).toBeTruthy();
 
-      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00000.ts"))
+      ).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00001.ts"))
+      ).toBeTruthy();
 
       onTestFinished(() => {
         // clean
-        safeRm(path.join(segmentsDir, "segment0.ts"));
-        safeRm(path.join(segmentsDir, "segment1.ts"));
         safeRm(segmentsDir);
       });
     });
@@ -310,13 +318,15 @@ describe("M3U8Downloader", () => {
       await sleep(200);
       expect(downloader.downloadedFiles.length).toEqual(1);
       // has been auto clean
-      expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
-      expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeFalsy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00000.ts"))
+      ).toBeTruthy();
+      expect(
+        fs.existsSync(path.join(segmentsDir, "segment00001.ts"))
+      ).toBeFalsy();
 
       onTestFinished(() => {
         // clean
-        safeRm(path.join(segmentsDir, "segment0.ts"));
-        safeRm(path.join(segmentsDir, "segment1.ts"));
         safeRm(segmentsDir);
       });
     });
@@ -383,13 +393,17 @@ describe("M3U8Downloader", () => {
     });
     await downloader.downloadTsSegments(tsUrls);
     expect(downloadSegment).toEqual(tsUrls.length);
-    expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeTruthy();
-    expect(fs.existsSync(path.join(segmentsDir, "segment1.ts"))).toBeTruthy();
+    expect(
+      fs.existsSync(path.join(segmentsDir, "segment00000.ts"))
+    ).toBeTruthy();
+    expect(
+      fs.existsSync(path.join(segmentsDir, "segment00001.ts"))
+    ).toBeTruthy();
 
     onTestFinished(() => {
       // clean
-      safeRm(path.join(segmentsDir, "segment0.ts"));
-      safeRm(path.join(segmentsDir, "segment1.ts"));
+      safeRm(path.join(segmentsDir, "segment00000.ts"));
+      safeRm(path.join(segmentsDir, "segment00001.ts"));
     });
   });
 

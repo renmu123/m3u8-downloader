@@ -145,7 +145,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       await this.downloadTsSegments(tsUrls);
 
       if (this.options.mergeSegments) {
-        const tsMediaPath = this.mergeTsSegments(this.totalSegments);
+        const tsMediaPath = await this.mergeTsSegments(this.totalSegments);
 
         if (this.options.convert2Mp4) {
           await this.convertToMp4(tsMediaPath);
@@ -245,7 +245,11 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         ...this.options.headers,
       },
     });
-    const segmentPath = path.resolve(this.segmentsDir, `segment${index}.ts`);
+    const formattedIndex = String(index).padStart(5, "0");
+    const segmentPath = path.resolve(
+      this.segmentsDir,
+      `segment${formattedIndex}.ts`
+    );
     await fs.writeFile(segmentPath, response.data);
     this.downloadedFiles.push(segmentPath);
     this.downloadedSegments++;
@@ -279,7 +283,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * merge TS segments into a single file
    * @param tsUrls Array of TS segment URLs
    */
-  private mergeTsSegments(total: number, deleteSource: boolean = true) {
+  private async mergeTsSegments(total: number, deleteSource: boolean = true) {
     if (!this.isRunning()) return;
     let mergedFilePath = path.resolve(this.segmentsDir, "output.ts");
 
@@ -294,12 +298,16 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         return;
       }
 
-      const segmentPath = path.resolve(this.segmentsDir, `segment${index}.ts`);
-      if (fs.existsSync(segmentPath)) {
-        const segmentData = fs.readFileSync(segmentPath);
+      const formattedIndex = String(index).padStart(5, "0");
+      const segmentPath = path.resolve(
+        this.segmentsDir,
+        `segment${formattedIndex}.ts`
+      );
+      try {
+        const segmentData = await fs.readFile(segmentPath);
         writeStream.write(segmentData);
-        if (deleteSource) fs.unlinkSync(segmentPath); // 删除临时 TS 片段文件
-      } else {
+        if (deleteSource) await fs.unlink(segmentPath); // 删除临时 TS 片段文件
+      } catch (error) {
         this.emit("error", `Segment ${index} is missing`);
         writeStream.end();
         return;
@@ -313,9 +321,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     if (!this.options.clean) return;
     await Promise.all(
       this.downloadedFiles.map(async file => {
-        if (await fs.pathExists(file)) {
+        try {
           await fs.unlink(file);
-        }
+        } catch (error) {}
       })
     );
     if (this.options.convert2Mp4) {
