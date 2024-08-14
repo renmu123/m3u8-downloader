@@ -32,7 +32,7 @@
     "dist"
   ],
   "dependencies": {
-    "axios": "^1.7.2",
+    "axios": "^1.7.4",
     "axios-retry": "^4.4.2",
     "fs-extra": "^11.2.0",
     "m3u8-parser": "^7.1.0",
