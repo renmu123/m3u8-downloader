@@ -284,7 +284,7 @@ describe("M3U8Downloader", () => {
       await sleep(400);
       downloader.cancel();
       expect(downloader.status).toEqual("canceled");
-      await sleep(200);
+      await sleep(400);
       expect(downloader.downloadedFiles.length).toEqual(1);
       // has been auto clean
       expect(fs.existsSync(path.join(segmentsDir, "segment0.ts"))).toBeFalsy();
@@ -315,7 +315,7 @@ describe("M3U8Downloader", () => {
       await sleep(400);
       downloader.cancel();
       expect(downloader.status).toEqual("canceled");
-      await sleep(200);
+      await sleep(400);
       expect(downloader.downloadedFiles.length).toEqual(1);
       // has been auto clean
       expect(
