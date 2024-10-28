@@ -346,7 +346,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
 
     return new Promise((resolve, reject) => {
       exec(
-        `"${this.options.ffmpegPath}" -i "${inputFilePath}" -c copy "${outputFilePath}"`,
+        `"${this.options.ffmpegPath}" -i "${inputFilePath}" -c copy "${outputFilePath}" -y`,
         (error, stdout, stderr) => {
           if (error) {
             this.emit("error", `Failed to convert to MP4: ${stderr}`);

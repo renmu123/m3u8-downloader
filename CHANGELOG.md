@@ -1,3 +1,7 @@
+# 0.3.1
+
+1. fix: If file has existed, the ffmpeg convert task will not be finished
+
 # 0.3.0
 
 1. fix: Optimize performance for merging TS segments
