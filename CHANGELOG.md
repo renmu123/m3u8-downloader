@@ -1,3 +1,8 @@
+# 0.4.0
+
+1. add `startIndex` and `endIndex` param
+2. add `skipExistSegments` param
+
 # 0.3.1
 
 1. fix: If file has existed, the ffmpeg convert task will not be finished

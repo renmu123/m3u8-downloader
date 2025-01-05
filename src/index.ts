@@ -61,6 +61,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     retries: number;
     clean: boolean;
     headers: RawAxiosRequestHeaders;
+    startIndex: number;
+    endIndex?: number;
+    skipExistSegments: boolean;
   };
 
   /**
@@ -74,6 +77,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * @param options.retries Number of retries for downloading segments
    * @param options.clean Whether to clean up downloaded segments after download is error or canceled
    * @param options.headers Headers to be sent with the HTTP request
+   * @param options.startIndex Start index of the segment to download
+   * @param options.endIndex End index of the segment to download
+   * @param options.skipExistSegments Skip download if the segment file already exists
    */
   constructor(
     m3u8Url: string,
@@ -87,6 +93,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       retries?: number;
       clean?: boolean;
       headers?: RawAxiosRequestHeaders;
+      startIndex?: number;
+      endIndex?: number;
+      skipExistSegments?: boolean;
     } = {}
   ) {
     super();
@@ -98,6 +107,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       retries: 3,
       ffmpegPath: "ffmpeg",
       clean: true,
+      startIndex: 0,
+      skipExistSegments: false,
       headers: {},
     };
     this.options = Object.assign(defaultOptions, options);
@@ -140,9 +151,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       }
       const m3u8Content = await this.getM3U8();
       const tsUrls = this.parseM3U8(m3u8Content);
-      this.totalSegments = tsUrls.length;
+      const urls = tsUrls.slice(this.options.startIndex, this.options.endIndex);
+      this.totalSegments = urls.length;
 
-      await this.downloadTsSegments(tsUrls);
+      await this.downloadTsSegments(urls);
 
       if (this.options.mergeSegments) {
         const tsMediaPath = await this.mergeTsSegments(this.totalSegments);
@@ -236,6 +248,21 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
 
   private async downloadSegment(tsUrl: string, index: number) {
     if (!this.isRunning()) return;
+    const formattedIndex = String(index).padStart(5, "0");
+    const segmentPath = path.resolve(
+      this.segmentsDir,
+      `segment${formattedIndex}.ts`
+    );
+    if (this.options.skipExistSegments && (await fs.pathExists(segmentPath))) {
+      this.downloadedSegments++;
+      const progress = {
+        downloadedFile: segmentPath,
+        downloaded: this.downloadedSegments,
+        total: this.totalSegments,
+      };
+      this.emit("progress", progress);
+      return progress;
+    }
 
     const response = await axios.get(tsUrl, {
       responseType: "arraybuffer",
@@ -245,11 +272,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         ...this.options.headers,
       },
     });
-    const formattedIndex = String(index).padStart(5, "0");
-    const segmentPath = path.resolve(
-      this.segmentsDir,
-      `segment${formattedIndex}.ts`
-    );
+
     await fs.writeFile(segmentPath, response.data);
     this.downloadedFiles.push(segmentPath);
     this.downloadedSegments++;
