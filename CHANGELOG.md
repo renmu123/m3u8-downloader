@@ -2,6 +2,7 @@
 
 1. add `startIndex` and `endIndex` param
 2. add `skipExistSegments` param
+3. fix: use spawn replace exec
 
 # 0.3.1
 

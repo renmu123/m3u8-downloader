@@ -1,7 +1,7 @@
 import os from "node:os";
 import fs from "fs-extra";
 import path from "node:path";
-import { exec } from "node:child_process";
+import { spawn } from "node:child_process";
 import { TypedEmitter } from "tiny-typed-emitter";
 
 import axios from "axios";
@@ -368,19 +368,30 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     const outputFilePath = this.output;
 
     return new Promise((resolve, reject) => {
-      exec(
-        `"${this.options.ffmpegPath}" -i "${inputFilePath}" -c copy "${outputFilePath}" -y`,
-        (error, stdout, stderr) => {
-          if (error) {
-            this.emit("error", `Failed to convert to MP4: ${stderr}`);
-            reject(error);
-            return;
-          }
-          fs.unlinkSync(inputFilePath); // remove merged TS file
-          resolve(outputFilePath);
-          this.emit("converted", outputFilePath);
+      const ffmpeg = spawn(this.options.ffmpegPath, [
+        "-i",
+        inputFilePath,
+        "-c",
+        "copy",
+        outputFilePath,
+        "-y",
+      ]);
+
+      ffmpeg.on("error", error => {
+        this.emit("error", `Failed to convert to MP4: ${error.message}`);
+        reject(error);
+      });
+
+      ffmpeg.on("close", code => {
+        if (code !== 0) {
+          this.emit("error", `FFmpeg process exited with code ${code}`);
+          reject(new Error(`FFmpeg process exited with code ${code}`));
+          return;
         }
-      );
+        fs.unlinkSync(inputFilePath); // remove merged TS file
+        resolve(outputFilePath);
+        this.emit("converted", outputFilePath);
+      });
     });
   }
 
