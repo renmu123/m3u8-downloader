@@ -64,6 +64,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     startIndex: number;
     endIndex?: number;
     skipExistSegments: boolean;
+    suffix: string;
   };
 
   /**
@@ -96,6 +97,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       startIndex?: number;
       endIndex?: number;
       skipExistSegments?: boolean;
+      suffix?: string;
     } = {}
   ) {
     super();
@@ -109,6 +111,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       clean: true,
       startIndex: 0,
       skipExistSegments: false,
+      suffix: "ts",
       headers: {},
     };
     this.options = Object.assign(defaultOptions, options);
@@ -251,7 +254,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     const formattedIndex = String(index).padStart(5, "0");
     const segmentPath = path.resolve(
       this.segmentsDir,
-      `segment${formattedIndex}.ts`
+      `segment${formattedIndex}.${this.options.suffix}`
     );
     if (this.options.skipExistSegments && (await fs.pathExists(segmentPath))) {
       this.downloadedSegments++;
@@ -308,7 +311,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   private async mergeTsSegments(total: number, deleteSource: boolean = true) {
     if (!this.isRunning()) return;
-    let mergedFilePath = path.resolve(this.segmentsDir, "output.ts");
+    let mergedFilePath = path.resolve(
+      this.segmentsDir,
+      `output.${this.options.suffix}`
+    );
 
     if (!this.options.convert2Mp4) {
       mergedFilePath = this.output;
@@ -324,7 +330,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       const formattedIndex = String(index).padStart(5, "0");
       const segmentPath = path.resolve(
         this.segmentsDir,
-        `segment${formattedIndex}.ts`
+        `segment${formattedIndex}.${this.options.suffix}`
       );
       try {
         const segmentData = await fs.readFile(segmentPath);
@@ -350,7 +356,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       })
     );
     if (this.options.convert2Mp4) {
-      let mergedFilePath = path.resolve(this.segmentsDir, "output.ts");
+      let mergedFilePath = path.resolve(
+        this.segmentsDir,
+        `output.${this.options.suffix}`
+      );
       if (await fs.pathExists(mergedFilePath)) {
         await fs.unlink(mergedFilePath);
       }
