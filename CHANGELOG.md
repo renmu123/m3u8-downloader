@@ -4,6 +4,7 @@
 2. add `skipExistSegments` param
 3. add `suffix` param
 4. fix: use spawn replace exec
+5. add `proxy` param [#1](https://github.com/renmu123/m3u8-downloader/pull/1)
 
 # 0.3.1
 
