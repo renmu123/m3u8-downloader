@@ -1,3 +1,5 @@
+<p>English | <a href="README.zh-CN.md">中文</a></p>
+
 # M3U8Downloader
 
 M3U8Downloader is a tool for downloading and merging M3U8 video segments. It supports concurrent downloads, retry mechanisms, and can merge downloaded TS segments into a single file, with an option to convert to MP4 format.
@@ -73,7 +75,16 @@ const downloader = new M3U8Downloader(
  * @param options.retries Number of retries for downloading segments
  * @param options.clean Whether to clean up downloaded segments after download is error or canceled
  * @param options.headers Axios headers to be sent with the HTTP request
- * */
+ * @param options.proxy Axios proxy configuration (default: false, i.e. direct connection)
+ *   - host: Proxy server host
+ *   - port: Proxy server port
+ *   - protocol: Proxy protocol, e.g. "http" | "https" | "socks5" (optional)
+ *   - auth: Authentication info (optional), format: { username: string, password: string }
+ * @param options.startIndex Start index of the segment to download (default: 0)
+ * @param options.endIndex End index of the segment to download (default: until last segment)
+ * @param options.skipExistSegments Skip downloading if the segment file already exists (default: false)
+ * @param options.suffix File suffix for downloaded segments (default: "ts")
+ */
 ```
 
 ### Start Download

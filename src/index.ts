@@ -52,6 +52,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     | "canceled"
     | "completed"
     | "error" = "pending";
+  private http: ReturnType<typeof axios.create>;
   private options: {
     concurrency: number;
     convert2Mp4: boolean;
@@ -65,6 +66,12 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     endIndex?: number;
     skipExistSegments: boolean;
     suffix: string;
+    proxy?: {
+      host: string;
+      port: number;
+      protocol?: string;
+      auth?: { username: string; password: string };
+    };
   };
 
   /**
@@ -98,6 +105,12 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       endIndex?: number;
       skipExistSegments?: boolean;
       suffix?: string;
+      proxy?: {
+        host: string;
+        port: number;
+        protocol?: string;
+        auth?: { username: string; password: string };
+      };
     } = {}
   ) {
     super();
@@ -123,7 +136,17 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     this.downloadedSegments = 0;
     this.downloadedFiles = [];
 
-    axiosRetry(axios, {
+    // axios 统一实例化，方便增加axios功能，比如拦截器
+    this.http = axios.create({
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+        ...this.options.headers,
+      },
+      proxy: this.options.proxy || false,
+    });
+
+    axiosRetry(this.http, {
       retries: this.options.retries,
       retryDelay: axiosRetry.exponentialDelay,
     });
@@ -215,13 +238,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    */
   private async getM3U8(): Promise<string> {
     try {
-      const { data: m3u8Content } = await axios.get(this.m3u8Url, {
-        headers: {
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-          ...this.options.headers,
-        },
-      });
+      const { data: m3u8Content } = await this.http.get(this.m3u8Url);
       return m3u8Content;
     } catch (error) {
       this.emit("error", "Failed to download m3u8 file");
@@ -267,14 +284,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       return progress;
     }
 
-    const response = await axios.get(tsUrl, {
-      responseType: "arraybuffer",
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-        ...this.options.headers,
-      },
-    });
+    const response = await this.http.get(tsUrl, { responseType: "arraybuffer" });
 
     await fs.writeFile(segmentPath, response.data);
     this.downloadedFiles.push(segmentPath);
