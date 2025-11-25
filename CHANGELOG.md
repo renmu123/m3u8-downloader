@@ -1,3 +1,7 @@
+# 0.4.1
+
+- fix: remove merged TS file with retry
+
 # 0.4.0
 
 1. add `startIndex` and `endIndex` param
