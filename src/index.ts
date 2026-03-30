@@ -377,12 +377,23 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     if (!this.options.convert2Mp4) {
       mergedFilePath = this.output;
     }
-    const writeStream = fs.createWriteStream(mergedFilePath);
+    const writeStream = fs.createWriteStream(mergedFilePath, {
+      highWaterMark: 1024 * 1024,
+    });
+    writeStream.on("error", error => {
+      this.emit("error", `Failed to write merged file: ${error.message}`);
+      throw error;
+    });
 
     // 辅助函数：处理背压（Backpressure）的写入
     const safeWrite = (data: Buffer) => {
       return new Promise<void>((resolve, reject) => {
-        const canWrite = writeStream.write(data);
+        const canWrite = writeStream.write(data, err => {
+          if (err) {
+            this.emit("error", `Failed to write segment data: ${err.message}`);
+            reject(err);
+          }
+        });
         if (canWrite) {
           resolve();
         } else {
@@ -411,7 +422,6 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       // 关键：等待流完全关闭
       await new Promise<void>((resolve, reject) => {
         writeStream.on("finish", resolve);
-        writeStream.on("error", reject);
         writeStream.end();
       });
 
