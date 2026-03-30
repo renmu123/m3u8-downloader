@@ -192,7 +192,9 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
 
       if (this.options.mergeSegments) {
         const tsMediaPath = await this.mergeTsSegments(this.totalSegments);
-
+        if (!tsMediaPath) {
+          throw new Error("Failed to merge TS segments");
+        }
         if (this.options.convert2Mp4) {
           await this.convertToMp4(tsMediaPath);
         }
@@ -377,30 +379,48 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     }
     const writeStream = fs.createWriteStream(mergedFilePath);
 
-    for (let index = 0; index < total; index++) {
-      if (!this.isRunning()) {
-        writeStream.end();
-        return;
+    // 辅助函数：处理背压（Backpressure）的写入
+    const safeWrite = (data: Buffer) => {
+      return new Promise<void>((resolve, reject) => {
+        const canWrite = writeStream.write(data);
+        if (canWrite) {
+          resolve();
+        } else {
+          writeStream.once("drain", resolve);
+        }
+      });
+    };
+
+    try {
+      for (let index = 0; index < total; index++) {
+        if (!this.isRunning()) throw new Error("Stopped by user");
+
+        const formattedIndex = String(index).padStart(5, "0");
+        const segmentPath = path.resolve(
+          this.segmentsDir,
+          `segment${formattedIndex}.${this.options.suffix}`
+        );
+
+        // 读取并安全写入
+        const segmentData = await fs.promises.readFile(segmentPath);
+        await safeWrite(segmentData);
+
+        if (deleteSource) await fs.promises.unlink(segmentPath);
       }
 
-      const formattedIndex = String(index).padStart(5, "0");
-      const segmentPath = path.resolve(
-        this.segmentsDir,
-        `segment${formattedIndex}.${this.options.suffix}`
-      );
-      try {
-        const segmentData = await fs.readFile(segmentPath);
-        writeStream.write(segmentData);
-        if (deleteSource) await fs.unlink(segmentPath); // 删除临时 TS 片段文件
-      } catch (error) {
-        this.emit("error", `Segment ${index} is missing`);
+      // 关键：等待流完全关闭
+      await new Promise<void>((resolve, reject) => {
+        writeStream.on("finish", resolve);
+        writeStream.on("error", reject);
         writeStream.end();
-        return;
-      }
+      });
+
+      return mergedFilePath;
+    } catch (error) {
+      writeStream.destroy(); // 发生错误时销毁流
+      this.emit("error", error.message);
+      return null;
     }
-
-    writeStream.end();
-    return mergedFilePath;
   }
   private async cleanUpDownloadedFiles() {
     if (!this.options.clean) return;

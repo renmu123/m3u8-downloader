@@ -1,3 +1,7 @@
+# 0.5.1
+
+- optimize mergets backpressure
+
 # 0.5.0
 
 - add `startTime` and `endTime` param
