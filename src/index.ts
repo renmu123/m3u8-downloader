@@ -295,18 +295,29 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
         return { content: text, url: currentUrl };
       }
 
-      const nextUrl = this.pickNextPlaylistUrl(currentUrl, manifest);
-      if (!nextUrl) {
+      const nextUrls = this.pickNextPlaylistUrls(currentUrl, manifest);
+      if (nextUrls.length === 0) {
         throw new Error(`No nested media playlist found: ${currentUrl}`);
       }
 
-      return walk(nextUrl, depth + 1);
+      let lastError: unknown;
+      for (const nextUrl of nextUrls) {
+        try {
+          return await walk(nextUrl, depth + 1);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError instanceof Error
+        ? lastError
+        : new Error(`All nested playlist candidates failed: ${currentUrl}`);
     };
 
     return walk(this.m3u8Url, 0);
   }
 
-  private pickNextPlaylistUrl(
+  private pickNextPlaylistUrls(
     baseUrl: string,
     manifest: {
       playlists?: Array<{
@@ -315,7 +326,7 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       }>;
       media?: Array<{ uri?: string }>;
     }
-  ): string {
+  ): string[] {
     const streamCandidates = (manifest.playlists ?? [])
       .map(playlist => ({
         bandwidth: Number(playlist.attributes?.BANDWIDTH ?? 0),
@@ -328,14 +339,12 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
 
     if (streamCandidates.length > 0) {
       streamCandidates.sort((a, b) => b.bandwidth - a.bandwidth);
-      return streamCandidates[0].url;
+      return streamCandidates.map(candidate => candidate.url);
     }
 
-    const mediaCandidates = (manifest.media ?? [])
+    return (manifest.media ?? [])
       .map(media => this.resolvePlaylistUrl(baseUrl, media.uri))
       .filter((url): url is string => url.length > 0);
-
-    return mediaCandidates[0] ?? "";
   }
 
   private resolvePlaylistUrl(baseUrl: string, childUrl?: string): string {
@@ -596,4 +605,3 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     return this.status === "running";
   }
 }
-

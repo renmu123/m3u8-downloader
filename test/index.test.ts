@@ -21,6 +21,7 @@ const safeRm = (path: string) => {
 describe("M3U8Downloader", () => {
   const m3u8Url = "http://127.0.0.1:3000/video.m3u8";
   const multiLevelM3u8Url = "http://127.0.0.1:3000/multi/master.m3u8";
+  const fallbackM3u8Url = "http://127.0.0.1:3000/fallback/master.m3u8";
   const output = "/path/to/output.mp4";
   const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader");
   if (!fs.existsSync(segmentsDir)) {
@@ -56,6 +57,23 @@ describe("M3U8Downloader", () => {
 ../../segment1.ts
 #EXT-X-ENDLIST`,
         url: "http://127.0.0.1:3000/multi/media/video.m3u8",
+      });
+    });
+    it("should fallback to the next variant when the highest bandwidth playlist fails", async () => {
+      const downloader = new M3U8Downloader(fallbackM3u8Url, output) as any;
+      const data = await downloader.getM3U8();
+
+      expect(data).toEqual({
+        content: `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:10
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:10.0,
+../../segment0.ts
+#EXTINF:10.0,
+../../segment1.ts
+#EXT-X-ENDLIST`,
+        url: "http://127.0.0.1:3000/fallback/valid/720.m3u8",
       });
     });
     it("should set the custom header", async () => {
@@ -213,6 +231,30 @@ describe("M3U8Downloader", () => {
       const output = path.join(segmentsDir, "output.ts");
 
       const downloader = new M3U8Downloader(multiLevelM3u8Url, output, {
+        convert2Mp4: false,
+        segmentsDir,
+        clean: true,
+      });
+
+      await downloader.download();
+      await sleep(100);
+
+      expect(downloader.status).toEqual("completed");
+      expect(fs.existsSync(output)).toBeTruthy();
+      expect(fs.readFileSync(output).length).toEqual(8868524);
+
+      onTestFinished(() => {
+        safeRm(output);
+        safeRm(segmentsDir);
+      });
+    });
+    it("should fallback to a lower bandwidth playlist during download", async ({
+      onTestFinished,
+    }) => {
+      const segmentsDir = path.join(os.tmpdir(), "m3u8-downloader", uuid());
+      const output = path.join(segmentsDir, "output.ts");
+
+      const downloader = new M3U8Downloader(fallbackM3u8Url, output, {
         convert2Mp4: false,
         segmentsDir,
         clean: true,
