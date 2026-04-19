@@ -23,6 +23,36 @@ segment0.ts
 segment1.ts
 #EXT-X-ENDLIST`);
 });
+
+app.get("/multi/master.m3u8", (req, res) => {
+  res.send(`
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360
+level1/index.m3u8
+`);
+});
+
+app.get("/multi/level1/index.m3u8", (req, res) => {
+  res.send(`
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=1800000,RESOLUTION=1280x720
+../media/video.m3u8
+`);
+});
+
+app.get("/multi/media/video.m3u8", (req, res) => {
+  res.send(`
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:10
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:10.0,
+../../segment0.ts
+#EXTINF:10.0,
+../../segment1.ts
+#EXT-X-ENDLIST`);
+});
+
 app.get("/head/video.m3u8", (req, res) => {
   res.send(req.headers);
 });

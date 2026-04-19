@@ -183,8 +183,8 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
       if (!(await fs.pathExists(path.dirname(this.output)))) {
         throw new Error("Output directory does not exist");
       }
-      const m3u8Content = await this.getM3U8();
-      const urls = this.parseM3U8(m3u8Content);
+      const m3u8= await this.getM3U8();
+      const urls = this.parseM3U8(m3u8.content, m3u8.url);
 
       this.totalSegments = urls.length;
 
@@ -243,16 +243,110 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     this.queue.clear();
   }
 
+
+
   /**
    * download M3U8 file
+   * Resolve a master playlist into the concrete media playlist that contains
    */
-  private async getM3U8(): Promise<string> {
+  private async getM3U8(
+    maxDepth = 5
+  ): Promise<{ content: string; url: string }> {
+    const visited = new Set<string>();
+
+    const walk = async (
+      currentUrl: string,
+      depth: number
+    ): Promise<{ content: string; url: string }> => {
+      if (!currentUrl) {
+        throw new Error("Playlist URL is empty");
+      }
+      if (depth > maxDepth) {
+        throw new Error(`Playlist depth exceeded maxDepth=${maxDepth}`);
+      }
+      if (visited.has(currentUrl)) {
+        throw new Error(`Playlist loop detected: ${currentUrl}`);
+      }
+
+      visited.add(currentUrl);
+
+      const { data } = await this.http.get<string>(currentUrl, {
+        responseType: "text",
+      });
+      const text = String(data ?? "").trim();
+      if (!text) {
+        throw new Error(`Playlist response is empty: ${currentUrl}`);
+      }
+
+      const parser = new m3u8Parser.Parser();
+      parser.push(text);
+      parser.end();
+
+      const manifest = parser.manifest as {
+        segments?: Array<{ uri: string; duration: number }>;
+        playlists?: Array<{
+          uri?: string;
+          attributes?: { BANDWIDTH?: number };
+        }>;
+        media?: Array<{ uri?: string }>;
+      };
+
+      if ((manifest.segments?.length ?? 0) > 0) {
+        return { content: text, url: currentUrl };
+      }
+
+      const nextUrl = this.pickNextPlaylistUrl(currentUrl, manifest);
+      if (!nextUrl) {
+        throw new Error(`No nested media playlist found: ${currentUrl}`);
+      }
+
+      return walk(nextUrl, depth + 1);
+    };
+
+    return walk(this.m3u8Url, 0);
+  }
+
+  private pickNextPlaylistUrl(
+    baseUrl: string,
+    manifest: {
+      playlists?: Array<{
+        uri?: string;
+        attributes?: { BANDWIDTH?: number };
+      }>;
+      media?: Array<{ uri?: string }>;
+    }
+  ): string {
+    const streamCandidates = (manifest.playlists ?? [])
+      .map(playlist => ({
+        bandwidth: Number(playlist.attributes?.BANDWIDTH ?? 0),
+        url: this.resolvePlaylistUrl(baseUrl, playlist.uri),
+      }))
+      .filter(
+        (candidate): candidate is { bandwidth: number; url: string } =>
+          candidate.url.length > 0
+      );
+
+    if (streamCandidates.length > 0) {
+      streamCandidates.sort((a, b) => b.bandwidth - a.bandwidth);
+      return streamCandidates[0].url;
+    }
+
+    const mediaCandidates = (manifest.media ?? [])
+      .map(media => this.resolvePlaylistUrl(baseUrl, media.uri))
+      .filter((url): url is string => url.length > 0);
+
+    return mediaCandidates[0] ?? "";
+  }
+
+  private resolvePlaylistUrl(baseUrl: string, childUrl?: string): string {
+    if (!childUrl) {
+      return "";
+    }
+
     try {
-      const { data: m3u8Content } = await this.http.get(this.m3u8Url);
-      return m3u8Content;
-    } catch (error) {
-      this.emit("error", "Failed to download m3u8 file");
-      throw error;
+      return new URL(childUrl, baseUrl).toString();
+    } catch {
+      return "";
     }
   }
 
@@ -260,7 +354,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
    * parse M3U8 file and return an array of URLs
    * @param m3u8Content M3U8 file content
    */
-  private parseM3U8(m3u8Content: string): string[] {
+  private parseM3U8(
+    m3u8Content: string,
+    baseUrl: string = this.m3u8Url
+  ): string[] {
     const parser = new m3u8Parser.Parser();
 
     parser.push(m3u8Content);
@@ -306,12 +403,10 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     return segments.map(segment => {
       if (isUrl(segment.uri)) {
         return segment.uri;
-      } else {
-        return new URL(segment.uri, this.m3u8Url).href;
       }
+      return new URL(segment.uri, baseUrl).href;
     });
   }
-
   private async downloadSegment(tsUrl: string, index: number) {
     if (!this.isRunning()) return;
     const formattedIndex = String(index).padStart(5, "0");
@@ -501,3 +596,4 @@ export default class M3U8Downloader extends TypedEmitter<M3U8DownloaderEvents> {
     return this.status === "running";
   }
 }
+
